@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hospitality Experience // Cyberdyne Countdown T-800</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Fuentes Futuristas / HUD -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --hud-red: #ff2a2a;
+      --hud-red-glow: rgba(255, 42, 42, 0.55);
+      --hud-amber: #ffaa00;
+      --hud-green: #00ff88;
+      --hud-cyan: #00e5ff;
+      --bg-dark: #07090d;
+      --panel-bg: rgba(13, 18, 26, 0.88);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg-dark);
+      color: #e6edf3;
+      font-family: 'Share Tech Mono', monospace;
+      overflow-x: hidden;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(circle at 50% 20%, rgba(255, 42, 42, 0.08) 0%, transparent 60%),
+        linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 36px 36px, 36px 36px;
+    }
+
+    .font-orbitron {
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    /* Scanlines & HUD Overlay */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.25) 3px,
+        rgba(0, 0, 0, 0.25) 4px
+      );
+      z-index: 40;
+    }
+
+    /* Resplandores y bordes HUD */
+    .hud-box {
+      background: var(--panel-bg);
+      border: 1px solid rgba(255, 42, 42, 0.4);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(255, 42, 42, 0.08);
+      backdrop-filter: blur(8px);
+      position: relative;
+    }
+
+    .hud-box::before,
+    .hud-box::after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: var(--hud-red);
+      border-style: solid;
+      pointer-events: none;
+    }
+
+    .hud-box::before {
+      top: -1px;
+      left: -1px;
+      border-width: 2px 0 0 2px;
+    }
+
+    .hud-box::after {
+      bottom: -1px;
+      right: -1px;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* Dígitos del Cronómetro */
+    .timer-display {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-shadow: 0 0 20px var(--hud-red-glow), 0 0 40px rgba(255, 42, 42, 0.25);
+      transition: color 0.3s ease, text-shadow 0.3s ease;
+    }
+
+    .state-welcome .timer-display {
+      color: #00e5ff;
+      text-shadow: 0 0 22px rgba(0, 229, 255, 0.5);
+    }
+
+    .state-running .timer-display {
+      color: #00ff88;
+      text-shadow: 0 0 24px rgba(0, 255, 136, 0.55);
+    }
+
+    .state-danger .timer-display {
+      color: #ff2a2a;
+      text-shadow: 0 0 30px rgba(255, 42, 42, 0.9), 0 0 60px rgba(255, 0, 0, 0.6);
+      animation: pulseText 0.45s infinite alternate;
+    }
+
+    .state-gameover .timer-display {
+      color: #ffaa00;
+      text-shadow: 0 0 30px rgba(255, 170, 0, 0.85);
+    }
+
+    /* Animaciones generales */
+    @keyframes pulseText {
+      from { transform: scale(1); }
+      to { transform: scale(1.035); }
+    }
+
+    @keyframes screenShake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      20% { transform: translate(-4px, 3px) rotate(-0.4deg); }
+      40% { transform: translate(4px, -3px) rotate(0.4deg); }
+      60% { transform: translate(-3px, -2px) rotate(-0.2deg); }
+      80% { transform: translate(3px, 2px) rotate(0.3deg); }
+    }
+
+    .shake-intense {
+      animation: screenShake 0.28s infinite;
+    }
+
+    @keyframes sirenFlash {
+      0%, 100% { box-shadow: inset 0 0 40px rgba(255, 0, 0, 0.05); }
+      50% { box-shadow: inset 0 0 110px rgba(255, 20, 20, 0.45); }
+    }
+
+    .siren-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 30;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .state-danger .siren-overlay {
+      opacity: 1;
+      animation: sirenFlash 0.6s infinite;
+    }
+
+    /* Animaciones SVG internas */
+    @keyframes breathe {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-4px); }
+    }
+
+    @keyframes bombBlink {
+      0%, 100% { opacity: 1; r: 6; }
+      50% { opacity: 0.25; r: 4; }
+    }
+
+    @keyframes glassesGlint {
+      0%, 75%, 100% { transform: translateX(-40px); opacity: 0; }
+      85% { opacity: 0.85; }
+      95% { transform: translateX(65px); opacity: 0; }
+    }
+
+    @keyframes spinWheel {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes motoBounce {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      25% { transform: translateY(-3px) rotate(-0.8deg); }
+      75% { transform: translateY(2px) rotate(0.6deg); }
+    }
+
+    @keyframes roadScroll {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: 160; }
+    }
+
+    @keyframes cityScroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(-300px); }
+    }
+
+    @keyframes exhaustPuff {
+      0% { transform: translate(0, 0) scale(0.5); opacity: 0.8; }
+      100% { transform: translate(-75px, -18px) scale(2.1); opacity: 0; }
+    }
+
+    @keyframes cyberEyePulse {
+      0%, 100% { transform: scale(1); opacity: 0.95; }
+      50% { transform: scale(1.35); opacity: 1; }
+    }
+
+    @keyframes explosionBoom {
+      0% { transform: scale(0.4); opacity: 0.2; }
+      50% { transform: scale(1.12); opacity: 1; }
+      100% { transform: scale(1); opacity: 0.92; }
+    }
+
+    @keyframes thumbRise {
+      0% { transform: translateY(35px) rotate(12deg); opacity: 0; }
+      100% { transform: translateY(0px) rotate(0deg); opacity: 1; }
+    }
+
+    .anim-breathe {
+      animation: breathe 3s ease-in-out infinite;
+    }
+
+    .anim-bomb-led {
+      animation: bombBlink 0.7s infinite;
+    }
+
+    .anim-glint {
+      animation: glassesGlint 4.2s infinite;
+    }
+
+    .anim-wheel {
+      transform-origin: center;
+      transform-box: fill-box;
+      animation: spinWheel 0.35s linear infinite;
+    }
+
+    .anim-moto {
+      animation: motoBounce 0.25s ease-in-out infinite;
+    }
+
+    .anim-road {
+      animation: roadScroll 0.45s linear infinite;
+    }
+
+    .anim-city {
+      animation: cityScroll 4.5s linear infinite;
+    }
+
+    .anim-smoke-1 {
+      animation: exhaustPuff 0.7s ease-out infinite;
+    }
+
+    .anim-smoke-2 {
+      animation: exhaustPuff 0.7s ease-out 0.35s infinite;
+    }
+
+    .anim-cyber-eye {
+      transform-origin: center;
+      transform-box: fill-box;
+      animation: cyberEyePulse 0.4s infinite;
+    }
+
+    .anim-explosion {
+      transform-origin: center;
+      transform-box: fill-box;
+      animation: explosionBoom 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .anim-thumb {
+      animation: thumbRise 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Botones tácticos */
+    .btn-cyber {
+      position: relative;
+      transition: all 0.18s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    .btn-cyber:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.15);
+    }
+
+    .btn-cyber:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn-cyber:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Barra de progreso segmentada */
+    .progress-fill {
+      transition: width 0.3s linear, background-color 0.3s ease;
+    }
+  </style>
+</head>
+<body class="state-welcome flex flex-col justify-between">
+  <!-- Efectos de pantalla HUD -->
+  <div class="scanlines"></div>
+  <div class="siren-overlay"></div>
+
+  <!-- ENCABEZADO SUPERIOR HUD -->
+  <header class="w-full border-b border-red-500/30 bg-black/70 backdrop-blur-md px-4 py-3 z-20">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Identidad Cyberdyne + Evento -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-red-600/20 border border-red-500 flex items-center justify-center shadow-[0_0_12px_rgba(255,42,42,0.4)]">
+          <svg class="w-6 h-6 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 22 19 2 19"></polygon>
+            <circle cx="12" cy="14" r="2.2" fill="currentColor"></circle>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] tracking-[0.25em] text-red-400 font-bold uppercase">CYBERDYNE SYSTEMS // MODEL T-800</span>
+            <span id="hudStatusBadge" class="px-2 py-0.5 text-[10px] rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold">STANDBY</span>
+          </div>
+          <h1 class="font-orbitron text-lg sm:text-2xl font-black tracking-wider text-white">
+            HOSPITALITY <span class="text-red-500">EXPERIENCE</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Controles rápidos superiores (Audio, Voz, Config, Pantalla Completa, GitHub) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnToggleVoice" title="Activar/Silenciar Voz de Arnold"
+          class="btn-cyber px-3 py-2 rounded-lg text-xs font-bold bg-slate-800/90 border border-cyan-500/40 text-cyan-300 flex items-center gap-1.5">
+          <span id="voiceIcon">🗣️</span>
+          <span class="hidden sm:inline" id="voiceLabel">VOZ: ON</span>
+        </button>
+
+        <button id="btnToggleSound" title="Activar/Silenciar Efectos de Sonido"
+          class="btn-cyber px-3 py-2 rounded-lg text-xs font-bold bg-slate-800/90 border border-emerald-500/40 text-emerald-300 flex items-center gap-1.5">
+          <span id="soundIcon">🔊</span>
+          <span class="hidden sm:inline" id="soundLabel">SFX: ON</span>
+        </button>
+
+        <button id="btnTogglePanel" title="Mostrar/Ocultar Configuración"
+          class="btn-cyber px-3 py-2 rounded-lg text-xs font-bold bg-slate-800/90 border border-amber-500/40 text-amber-300 flex items-center gap-1.5">
+          <span>⚙️</span>
+          <span class="hidden md:inline">CONFIG</span>
+        </button>
+
+        <button id="btnFullscreen" title="Pantalla Completa para Proyección"
+          class="btn-cyber px-3 py-2 rounded-lg text-xs font-bold bg-slate-800/90 border border-slate-600 text-slate-200 flex items-center gap-1.5">
+          <span>⛶</span>
+          <span class="hidden md:inline">PROYECTAR</span>
+        </button>
+
+        <button id="btnGithubModal" title="Cómo publicar en GitHub Pages"
+          class="btn-cyber px-3 py-2 rounded-lg text-xs font-bold bg-red-950/70 border border-red-500/50 text-red-300 flex items-center gap-1.5">
+          <span>🚀</span>
+          <span class="hidden sm:inline">GITHUB PAGES</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL (ESCENARIO + CRONÓMETRO) -->
+  <main id="mainStage" class="flex-1 w-full max-w-7xl mx-auto px-4 py-4 sm:py-6 flex flex-col justify-center gap-5 z-10">
+
+    <!-- GRID PRINCIPAL: IZQUIERDA (ARNOLD ANIMADO + DIÁLOGO) / DERECHA (CRONÓMETRO + ACCIONES) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+
+      <!-- COLUMNA IZQUIERDA: VISOR DE PERSONAJE ARNOLD TERMINATOR (7 cols en desktop) -->
+      <section class="lg:col-span-7 hud-box rounded-2xl p-4 sm:p-5 flex flex-col justify-between overflow-hidden">
+        <!-- Cabecera interna del visor -->
+        <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-700/70 pb-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+            <span class="tracking-widest text-red-400 font-bold">VISUAL FEED // T-800 UNIT 101</span>
+          </div>
+          <span id="phaseTag" class="text-cyan-400 font-bold">FASE 01: PROTOCOLO DE BIENVENIDA</span>
+        </div>
+
+        <!-- ESCENARIO SVG DINÁMICO DE ARNOLD -->
+        <div class="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-gradient-to-b from-slate-950 via-slate-900 to-black rounded-xl border border-slate-700/80 overflow-hidden flex items-center justify-center shadow-inner">
+          <!-- Retícula HUD de fondo en el visor -->
+          <div class="absolute inset-0 pointer-events-none opacity-30"
+               style="background-image: radial-gradient(#ff2a2a 1px, transparent 1px); background-size: 24px 24px;"></div>
+
+          <!-- Datos telemétricos esquinas del visor -->
+          <div class="absolute top-2.5 left-3 text-[10px] sm:text-xs text-red-400/90 leading-tight pointer-events-none z-10">
+            <div>TARGET: COMPETITORS</div>
+            <div>EVENT: HOSPITALITY EXP.</div>
+            <div id="hudTelemetry">CPU: OPTIMAL // THREAT: LOW</div>
+          </div>
+          <div class="absolute top-2.5 right-3 text-[10px] sm:text-xs text-right text-cyan-400/90 leading-tight pointer-events-none z-10">
+            <div>SYS.VER 2.026</div>
+            <div id="hudModeReadout">MODE: BRIEFING</div>
+          </div>
+
+          <!-- CONTENEDOR SVG QUE CAMBIA SEGÚN LA FASE -->
+          <div id="arnoldSvgContainer" class="w-full h-full flex items-center justify-center">
+            <!-- Renderizado dinámicamente por JS -->
+          </div>
+        </div>
+
+        <!-- GLOBO DE DIÁLOGO ESTILO HUD / CÓMIC CON EFECTO MÁQUINA DE ESCRIBIR -->
+        <div class="mt-4 relative bg-slate-950/95 border-2 border-red-500/70 rounded-xl p-4 shadow-[0_0_20px_rgba(255,42,42,0.2)]">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-orbitron font-bold text-red-400 tracking-wider flex items-center gap-2">
+              <span class="px-1.5 py-0.5 bg-red-600 text-white rounded text-[10px]">ARNOLD T-800</span>
+              TRANSMISIÓN DE AUDIO:
+            </span>
+            <button id="btnReplaySpeech" class="text-[11px] text-cyan-400 hover:text-cyan-300 underline cursor-pointer">
+              ↻ Repetir voz
+            </button>
+          </div>
+          <p id="dialogueText" class="text-base sm:text-xl md:text-2xl text-white leading-relaxed font-semibold min-h-[3.8rem] sm:min-h-[4.2rem]">
+            <!-- Texto animado aquí -->
+          </p>
+        </div>
+      </section>
+
+      <!-- COLUMNA DERECHA: CRONÓMETRO GIGANTE Y CONTROLES PRINCIPALES (5 cols en desktop) -->
+      <section class="lg:col-span-5 hud-box rounded-2xl p-5 sm:p-6 flex flex-col justify-between gap-5">
+        <!-- Encabezado del reloj -->
+        <div>
+          <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+            <span class="tracking-widest uppercase">DETONATION COUNTDOWN</span>
+            <span id="dangerThresholdBadge" class="text-amber-400 font-bold">ALERTA CRÍTICA: &le; 15s</span>
+          </div>
+
+          <!-- RELOJ DIGITAL PRINCIPAL -->
+          <div class="bg-black/90 border-2 border-slate-700/90 rounded-2xl py-6 px-4 text-center relative overflow-hidden shadow-inner">
+            <div id="timerDisplay" class="timer-display text-6xl sm:text-7xl xl:text-8xl select-none">
+              03:00
+            </div>
+            <div id="timerSubstatus" class="mt-2 text-xs sm:text-sm tracking-[0.25em] uppercase text-cyan-400 font-bold">
+              LISTO PARA ACTIVAR DETONADOR
+            </div>
+
+            <!-- Barra de progreso de tiempo restante -->
+            <div class="w-full h-3 bg-slate-800 rounded-full mt-5 overflow-hidden border border-slate-700">
+              <div id="progressBar" class="progress-fill h-full bg-cyan-400 w-full"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTONES DE ACCIÓN PRINCIPALES -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button id="btnStart"
+            class="sm:col-span-2 btn-cyber py-4 px-5 rounded-xl font-black text-base sm:text-lg bg-gradient-to-r from-red-700 via-red-600 to-red-700 text-white border border-red-400 shadow-[0_0_25px_rgba(255,42,42,0.5)] flex items-center justify-center gap-2 cursor-pointer">
+            <span>💣</span>
+            <span id="btnStartText">ACTIVAR BOMBA / INICIAR</span>
+          </button>
+
+          <button id="btnPause" disabled
+            class="btn-cyber py-3.5 px-4 rounded-xl font-bold text-sm bg-amber-600/20 text-amber-300 border border-amber-500/60 flex items-center justify-center gap-2 cursor-pointer">
+            <span>⏸</span>
+            <span>PAUSAR</span>
+          </button>
+
+          <button id="btnReset"
+            class="btn-cyber py-3.5 px-4 rounded-xl font-bold text-sm bg-slate-800 text-slate-200 border border-slate-600 flex items-center justify-center gap-2 cursor-pointer">
+            <span>↺</span>
+            <span>REINICIAR</span>
+          </button>
+        </div>
+
+        <!-- PANEL DE CONFIGURACIÓN PROGRAMABLE (Ocultable durante el evento) -->
+        <div id="configPanel" class="border-t border-slate-700/80 pt-4 space-y-4 transition-all">
+          <div class="flex items-center justify-between">
+            <h2 class="font-orbitron text-xs font-bold tracking-wider text-amber-400 uppercase">
+              ⚙️ PROGRAMACIÓN DEL TEMPORIZADOR
+            </h2>
+            <span class="text-[11px] text-slate-400">Ajustable antes de iniciar</span>
+          </div>
+
+          <!-- Presets rápidos -->
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1.5 uppercase">Tiempos Rápidos (Presets):</label>
+            <div class="grid grid-cols-5 gap-1.5">
+              <button type="button" data-preset="30" class="preset-btn py-2 rounded-lg bg-slate-800 hover:bg-red-900/50 border border-slate-600 hover:border-red-500 text-xs font-bold text-white cursor-pointer">30s</button>
+              <button type="button" data-preset="60" class="preset-btn py-2 rounded-lg bg-slate-800 hover:bg-red-900/50 border border-slate-600 hover:border-red-500 text-xs font-bold text-white cursor-pointer">1m</button>
+              <button type="button" data-preset="180" class="preset-btn py-2 rounded-lg bg-red-900/40 border border-red-500 text-xs font-bold text-white cursor-pointer">3m</button>
+              <button type="button" data-preset="300" class="preset-btn py-2 rounded-lg bg-slate-800 hover:bg-red-900/50 border border-slate-600 hover:border-red-500 text-xs font-bold text-white cursor-pointer">5m</button>
+              <button type="button" data-preset="600" class="preset-btn py-2 rounded-lg bg-slate-800 hover:bg-red-900/50 border border-slate-600 hover:border-red-500 text-xs font-bold text-white cursor-pointer">10m</button>
+            </div>
+          </div>
+
+          <!-- Inputs numéricos exactos -->
+          <div class="grid grid-cols-3 gap-2.5">
+            <div>
+              <label for="inputMinutes" class="block text-[11px] text-slate-300 mb-1">MINUTOS</label>
+              <input id="inputMinutes" type="number" min="0" max="99" value="3"
+                class="w-full bg-slate-950 border border-slate-600 focus:border-red-500 rounded-lg px-3 py-2 text-center font-orbitron text-lg font-bold text-white outline-none" />
+            </div>
+            <div>
+              <label for="inputSeconds" class="block text-[11px] text-slate-300 mb-1">SEGUNDOS</label>
+              <input id="inputSeconds" type="number" min="0" max="59" value="0"
+                class="w-full bg-slate-950 border border-slate-600 focus:border-red-500 rounded-lg px-3 py-2 text-center font-orbitron text-lg font-bold text-white outline-none" />
+            </div>
+            <div>
+              <label for="inputDangerSec" class="block text-[11px] text-amber-400 mb-1">ALERTA (SEG)</label>
+              <input id="inputDangerSec" type="number" min="3" max="120" value="15"
+                class="w-full bg-slate-950 border border-amber-500/60 focus:border-amber-400 rounded-lg px-3 py-2 text-center font-orbitron text-lg font-bold text-amber-300 outline-none" />
+            </div>
+          </div>
+
+          <!-- Botón de prueba rápida de fases para el organizador -->
+          <div class="pt-1">
+            <span class="block text-[10px] text-slate-400 mb-1.5 uppercase">Vista previa rápida de fases (Test antes del evento):</span>
+            <div class="grid grid-cols-4 gap-1.5">
+              <button type="button" data-preview="welcome" class="preview-phase-btn py-1.5 px-2 rounded bg-cyan-950/70 border border-cyan-500/40 text-[10px] text-cyan-300 font-bold hover:bg-cyan-900/70 cursor-pointer">1. Bienvenida</button>
+              <button type="button" data-preview="running" class="preview-phase-btn py-1.5 px-2 rounded bg-emerald-950/70 border border-emerald-500/40 text-[10px] text-emerald-300 font-bold hover:bg-emerald-900/70 cursor-pointer">2. Moto</button>
+              <button type="button" data-preview="danger" class="preview-phase-btn py-1.5 px-2 rounded bg-red-950/70 border border-red-500/40 text-[10px] text-red-300 font-bold hover:bg-red-900/70 cursor-pointer">3. Peligro</button>
+              <button type="button" data-preview="gameover" class="preview-phase-btn py-1.5 px-2 rounded bg-amber-950/70 border border-amber-500/40 text-[10px] text-amber-300 font-bold hover:bg-amber-900/70 cursor-pointer">4. Final</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- PIE DE PÁGINA DISCRETO -->
+  <footer class="w-full border-t border-slate-800/80 bg-black/60 px-4 py-2 text-center text-[11px] text-slate-500 z-20">
+    HOSPITALITY EXPERIENCE // CYBERDYNE COUNTDOWN SYSTEM — LISTO PARA PROYECCIÓN EN VIVO & GITHUB PAGES
+  </footer>
+
+  <!-- MODAL INSTRUCCIONES GITHUB PAGES -->
+  <div id="githubModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="hud-box max-w-xl w-full rounded-2xl p-6 bg-slate-950 border border-red-500/70 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-orbitron text-lg font-bold text-white flex items-center gap-2">
+          <span>🚀</span> PUBLICAR EN GITHUB PAGES (GRATIS)
+        </h3>
+        <button id="btnCloseGithubModal" class="text-slate-400 hover:text-white text-xl font-bold px-2 cursor-pointer">&times;</button>
+      </div>
+
+      <ol class="list-decimal list-inside space-y-2.5 text-sm text-slate-300 leading-relaxed">
+        <li>Crea una cuenta o inicia sesión en <strong class="text-white">github.com</strong> y haz clic en <strong class="text-cyan-400">New repository</strong> (ej. <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">hospitality-timer</code>).</li>
+        <li>Guarda este archivo exactamente con el nombre <code class="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300">index.html</code> y súbelo al repositorio (<strong class="text-white">Add file &rarr; Upload files</strong>).</li>
+        <li>Ve a la pestaña <strong class="text-white">Settings</strong> del repositorio &rarr; sección <strong class="text-cyan-400">Pages</strong> en el menú lateral.</li>
+        <li>En <strong class="text-white">Build and deployment &rarr; Branch</strong>, selecciona <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">main</code> y carpeta <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">/ (root)</code>, luego pulsa <strong class="text-white">Save</strong>.</li>
+        <li>En 1 minuto tendrás tu enlace público listo para proyectar desde cualquier navegador en el evento.</li>
+      </ol>
+
+      <div class="pt-2 flex justify-end">
+        <button id="btnAcceptGithubModal" class="btn-cyber px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold text-xs cursor-pointer">
+          ENTENDIDO // CERRAR
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * =========================================================================
+     * HOSPITALITY EXPERIENCE - CYBERDYNE T-800 COUNTDOWN ENGINE
+     * 100% Autocontenido: Gráficos SVG dinámicos + Web Audio API + Speech API
+     * =========================================================================
+     */
+
+    // --- 1. CONFIGURACIÓN Y FRASES DE LAS 4 FASES ---
+    const PHASES = {
+      welcome: {
+        id: 'welcome',
+        badge: 'STANDBY',
+        phaseTag: 'FASE 01: PROTOCOLO DE BIENVENIDA',
+        telemetry: 'CPU: OPTIMAL // BOMB: ARMED & READY',
+        modeReadout: 'MODE: BRIEFING',
+        substatus: 'LISTO PARA ACTIVAR DETONADOR',
+        dialogue: '¡Hola, soy Arnold! Bienvenidos al evento Hospitality Experience. A continuación activaré la bomba; deberán terminar su actividad antes de que se acabe el tiempo... ¡si quieren vivir!'
+      },
+      running: {
+        id: 'running',
+        badge: 'ACTIVE // PURSUIT',
+        phaseTag: 'FASE 02: PERSECUCIÓN EN MARCHA',
+        telemetry: 'ENGINE: V-TWIN MAX // SPEED: 185 KM/H',
+        modeReadout: 'MODE: PURSUIT',
+        substatus: '¡BOMBA ACTIVADA! EN MARCHA...',
+        dialogue: '¡Empezó! ¡Muévanse, rápido! No hay tiempo que perder, ¡aceleren!'
+      },
+      danger: {
+        id: 'danger',
+        badge: 'CRITICAL ALERT',
+        phaseTag: 'FASE 03: ALERTA DE DETONACIÓN INMINENTE',
+        telemetry: 'WARNING: SKYNET OVERRIDE // CRITICAL!',
+        modeReadout: 'MODE: TERMINATION',
+        substatus: '⚠️ ¡TIEMPO CRÍTICO! ¡TERMINEN YA! ⚠️',
+        dialogue: '¡Se está acabando el tiempo! ¡Skynet los destruirá si no terminan ya! ¡Corran como si un T-1000 los persiguiera!'
+      },
+      gameover: {
+        id: 'gameover',
+        badge: 'DETONATED // 00:00',
+        phaseTag: 'FASE 04: MISIÓN FINALIZADA',
+        telemetry: 'STATUS: DETONATION COMPLETE',
+        modeReadout: 'MODE: TERMINATED',
+        substatus: '💥 TIEMPO AGOTADO // HASTA LA VISTA, BABY 💥',
+        dialogue: '¡Se acabó el tiempo! ¡Hasta la vista, baby!'
+      }
+    };
+
+    // --- 2. ESTADO DE LA APLICACIÓN ---
+    const state = {
+      totalSeconds: 180,      // Tiempo total programado (3 min por defecto)
+      remainingSeconds: 180,  // Tiempo restante actual
+      dangerThreshold: 15,    // Segundos restantes para entrar en Fase Peligro
+      currentPhase: 'welcome',
+      isRunning: false,
+      isPaused: false,
+      timerInterval: null,
+      typewriterInterval: null,
+      sfxEnabled: true,
+      voiceEnabled: true,
+      panelVisible: true
+    };
+
+    // --- 3. ELEMENTOS DEL DOM ---
+    const dom = {
+      body: document.body,
+      mainStage: document.getElementById('mainStage'),
+      hudStatusBadge: document.getElementById('hudStatusBadge'),
+      phaseTag: document.getElementById('phaseTag'),
+      hudTelemetry: document.getElementById('hudTelemetry'),
+      hudModeReadout: document.getElementById('hudModeReadout'),
+      arnoldSvgContainer: document.getElementById('arnoldSvgContainer'),
+      dialogueText: document.getElementById('dialogueText'),
+      timerDisplay: document.getElementById('timerDisplay'),
+      timerSubstatus: document.getElementById('timerSubstatus'),
+      progressBar: document.getElementById('progressBar'),
+      dangerThresholdBadge: document.getElementById('dangerThresholdBadge'),
+      btnStart: document.getElementById('btnStart'),
+      btnStartText: document.getElementById('btnStartText'),
+      btnPause: document.getElementById('btnPause'),
+      btnReset: document.getElementById('btnReset'),
+      btnToggleVoice: document.getElementById('btnToggleVoice'),
+      voiceIcon: document.getElementById('voiceIcon'),
+      voiceLabel: document.getElementById('voiceLabel'),
+      btnToggleSound: document.getElementById('btnToggleSound'),
+      soundIcon: document.getElementById('soundIcon'),
+      soundLabel: document.getElementById('soundLabel'),
+      btnTogglePanel: document.getElementById('btnTogglePanel'),
+      configPanel: document.getElementById('configPanel'),
+      btnFullscreen: document.getElementById('btnFullscreen'),
+      btnReplaySpeech: document.getElementById('btnReplaySpeech'),
+      inputMinutes: document.getElementById('inputMinutes'),
+      inputSeconds: document.getElementById('inputSeconds'),
+      inputDangerSec: document.getElementById('inputDangerSec'),
+      githubModal: document.getElementById('githubModal'),
+      btnGithubModal: document.getElementById('btnGithubModal'),
+      btnCloseGithubModal: document.getElementById('btnCloseGithubModal'),
+      btnAcceptGithubModal: document.getElementById('btnAcceptGithubModal')
+    };
+
+    // --- 4. MOTOR DE AUDIO SINTETIZADO (WEB AUDIO API) ---
+    class CyberAudioEngine {
+      constructor() {
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      // Pitido de reloj / bomba normal
+      playTick(isDanger = false) {
+        if (!state.sfxEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = isDanger ? 'sawtooth' : 'sine';
+        osc.frequency.setValueAtTime(isDanger ? 980 : 620, now);
+        if (isDanger) {
+          osc.frequency.exponentialRampToValueAtTime(1450, now + 0.12);
+        }
+
+        gain.gain.setValueAtTime(isDanger ? 0.22 : 0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (isDanger ? 0.16 : 0.07));
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + (isDanger ? 0.17 : 0.08));
+      }
+
+      // Rugido de motor Chopper al iniciar la fase 2
+      playEngineRev() {
+        if (!state.sfxEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc2.type = 'triangle';
+
+        osc.frequency.setValueAtTime(55, now);
+        osc.frequency.linearRampToValueAtTime(145, now + 0.35);
+        osc.frequency.linearRampToValueAtTime(95, now + 0.65);
+        osc.frequency.linearRampToValueAtTime(190, now + 1.15);
+
+        osc2.frequency.setValueAtTime(27.5, now);
+        osc2.frequency.linearRampToValueAtTime(95, now + 1.15);
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.24, now + 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+
+        osc.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc2.start(now);
+        osc.stop(now + 1.25);
+        osc2.stop(now + 1.25);
+      }
+
+      // Alarma de sirena Skynet al entrar en peligro
+      playDangerSiren() {
+        if (!state.sfxEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.linearRampToValueAtTime(920, now + 0.3);
+        osc.frequency.linearRampToValueAtTime(520, now + 0.6);
+
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.65);
+      }
+
+      // Explosión cinemática al llegar a 00:00
+      playExplosion() {
+        if (!state.sfxEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 1.8;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(950, now);
+        filter.frequency.exponentialRampToValueAtTime(65, now + 1.6);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.45, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.75);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        noise.start(now);
+        noise.stop(now + 1.8);
+      }
+    }
+
+    const audioFX = new CyberAudioEngine();
+
+    // --- 5. SÍNTESIS DE VOZ DE ARNOLD (WEB SPEECH API) ---
+    function speakArnold(text) {
+      if (!state.voiceEnabled || !('speechSynthesis' in window)) return;
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'es-ES';
+        utterance.pitch = 0.65; // Tono grave estilo Terminator
+        utterance.rate = 0.96;  // Ritmo firme y robótico
+        utterance.volume = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        const esMaleVoice = voices.find(v =>
+          v.lang.toLowerCase().includes('es') &&
+          (v.name.toLowerCase().includes('male') ||
+           v.name.toLowerCase().includes('pablo') ||
+           v.name.toLowerCase().includes('jorge') ||
+           v.name.toLowerCase().includes('diego') ||
+           v.name.toLowerCase().includes('google español'))
+        ) || voices.find(v => v.lang.toLowerCase().includes('es'));
+
+        if (esMaleVoice) {
+          utterance.voice = esMaleVoice;
+        }
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn('SpeechSynthesis no disponible:', err);
+      }
+    }
+
+    // Cargar voces en navegadores Chromium
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+
+    // --- 6. ILUSTRACIONES SVG VECTORIALES DE ARNOLD (4 FASES) ---
+    function getArnoldSVG(phase) {
+      switch (phase) {
+        // FASE 1: BIENVENIDA (Arnold de pie con chaqueta de cuero, gafas oscuras y bomba con LED parpadeante)
+        case 'welcome':
+          return `
+            <svg viewBox="0 0 640 360" class="w-full h-full max-h-[340px]" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="leatherGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#2b303a"/>
+                  <stop offset="50%" stop-color="#14171d"/>
+                  <stop offset="100%" stop-color="#090b0e"/>
+                </linearGradient>
+                <linearGradient id="skinGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e5b393"/>
+                  <stop offset="100%" stop-color="#c28b6b"/>
+                </linearGradient>
+                <clipPath id="glassesClip">
+                  <rect x="275" y="102" width="90" height="22" rx="4"/>
+                </clipPath>
+              </defs>
+
+              <!-- Halo HUD detrás de Arnold -->
+              <circle cx="320" cy="180" r="135" fill="none" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="12 8" opacity="0.35"/>
+              <circle cx="320" cy="180" r="110" fill="rgba(0, 229, 255, 0.05)" stroke="#ff2a2a" stroke-width="1" opacity="0.4"/>
+
+              <g class="anim-breathe">
+                <!-- Torso ancho chaqueta de cuero -->
+                <path d="M205 350 L222 195 Q245 170 285 166 L355 166 Q395 170 418 195 L435 350 Z" fill="url(#leatherGrad)" stroke="#475569" stroke-width="2"/>
+                <!-- Solapas de chaqueta -->
+                <polygon points="285,166 320,235 268,215" fill="#1e222b" stroke="#64748b" stroke-width="1.5"/>
+                <polygon points="355,166 320,235 372,215" fill="#1e222b" stroke="#64748b" stroke-width="1.5"/>
+                <!-- Camiseta negra interior -->
+                <polygon points="292,168 348,168 320,235" fill="#090a0f"/>
+                <!-- Cremalleras metálicas -->
+                <line x1="265" y1="220" x2="255" y2="310" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="4 3"/>
+                <line x1="375" y1="220" x2="385" y2="310" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="4 3"/>
+
+                <!-- Cuello musculoso -->
+                <rect x="296" y="142" width="48" height="32" rx="8" fill="url(#skinGrad)"/>
+
+                <!-- Cabeza cuadrada icónica de Arnold -->
+                <path d="M276 82 Q276 58 320 58 Q364 58 364 82 L362 128 Q360 152 320 155 Q280 152 278 128 Z" fill="url(#skinGrad)" stroke="#8c5d42" stroke-width="1.5"/>
+
+                <!-- Cabello corte militar plano -->
+                <path d="M275 86 L277 62 Q320 46 363 62 L365 86 Q350 70 320 70 Q290 70 275 86 Z" fill="#2d241e"/>
+
+                <!-- Gafas de sol negras -->
+                <rect x="276" y="100" width="39" height="21" rx="4" fill="#05070a" stroke="#94a3b8" stroke-width="2"/>
+                <rect x="325" y="100" width="39" height="21" rx="4" fill="#05070a" stroke="#94a3b8" stroke-width="2"/>
+                <line x1="315" y1="106" x2="325" y2="106" stroke="#94a3b8" stroke-width="3"/>
+
+                <!-- Destello animado en las gafas -->
+                <g clip-path="url(#glassesClip)">
+                  <rect class="anim-glint" x="280" y="96" width="14" height="30" transform="skewX(-25)" fill="#ffffff" opacity="0.7"/>
+                </g>
+
+                <!-- Boca seria / media sonrisa confiada -->
+                <path d="M303 137 Q320 134 337 137" fill="none" stroke="#6b3e26" stroke-width="3" stroke-linecap="round"/>
+
+                <!-- Brazo derecho sosteniendo el detonador/bomba -->
+                <path d="M222 200 Q190 250 235 280 L285 275" fill="none" stroke="#1e222b" stroke-width="34" stroke-linecap="round"/>
+                <!-- Mano con guante de cuero -->
+                <rect x="275" y="256" width="34" height="32" rx="8" fill="#111318" stroke="#64748b" stroke-width="1.5"/>
+
+                <!-- BOMBA / DETONADOR TÁCTICO -->
+                <g transform="translate(295, 222)">
+                  <rect x="0" y="15" width="76" height="52" rx="8" fill="#1e293b" stroke="#ff2a2a" stroke-width="2.5"/>
+                  <rect x="8" y="23" width="60" height="20" rx="3" fill="#05080c"/>
+                  <text x="38" y="37" text-anchor="middle" fill="#ff2a2a" font-family="monospace" font-size="12" font-weight="bold">C4-ARMED</text>
+                  <!-- Cables -->
+                  <path d="M15 15 Q20 2 35 15" fill="none" stroke="#ef4444" stroke-width="3"/>
+                  <path d="M40 15 Q50 2 62 15" fill="none" stroke="#eab308" stroke-width="3"/>
+                  <!-- LED Rojo Parpadeante -->
+                  <circle cx="38" cy="54" r="6" fill="#ff2a2a" class="anim-bomb-led"/>
+                  <circle cx="38" cy="54" r="11" fill="none" stroke="#ff2a2a" stroke-width="1.5" opacity="0.6"/>
+                </g>
+              </g>
+            </svg>
+          `;
+
+        // FASE 2: EN MARCHA (Arnold acelerando en su motocicleta Chopper a toda velocidad)
+        case 'running':
+          return `
+            <svg viewBox="0 0 640 360" class="w-full h-full max-h-[340px]" xmlns="http://www.w3.org/2000/svg">
+              <!-- Horizonte nocturno ciberpunk en movimiento -->
+              <g class="anim-city" opacity="0.35">
+                <rect x="40" y="110" width="45" height="150" fill="#0f172a" stroke="#00ff88" stroke-width="1"/>
+                <rect x="110" y="80" width="60" height="180" fill="#0f172a" stroke="#00e5ff" stroke-width="1"/>
+                <rect x="210" y="130" width="50" height="130" fill="#0f172a" stroke="#00ff88" stroke-width="1"/>
+                <rect x="340" y="95" width="65" height="165" fill="#0f172a" stroke="#00e5ff" stroke-width="1"/>
+                <rect x="450" y="120" width="55" height="140" fill="#0f172a" stroke="#00ff88" stroke-width="1"/>
+                <rect x="550" y="75" width="70" height="185" fill="#0f172a" stroke="#00e5ff" stroke-width="1"/>
+                <rect x="650" y="110" width="55" height="150" fill="#0f172a" stroke="#00ff88" stroke-width="1"/>
+              </g>
+
+              <!-- Carretera -->
+              <rect x="0" y="260" width="640" height="100" fill="#0b0f17"/>
+              <line x1="0" y1="260" x2="640" y2="260" stroke="#00ff88" stroke-width="2.5"/>
+              <line x1="0" y1="305" x2="640" y2="305" stroke="#38bdf8" stroke-width="4" stroke-dasharray="45 35" class="anim-road"/>
+
+              <!-- Líneas de velocidad -->
+              <line x1="50" y1="90" x2="170" y2="90" stroke="#00ff88" stroke-width="2" opacity="0.5"/>
+              <line x1="460" y1="70" x2="610" y2="70" stroke="#00e5ff" stroke-width="2" opacity="0.5"/>
+              <line x1="30" y1="185" x2="130" y2="185" stroke="#ffffff" stroke-width="1.5" opacity="0.35"/>
+
+              <!-- MOTOCICLETA CHOPPER + ARNOLD -->
+              <g class="anim-moto">
+                <!-- Humo del tubo de escape -->
+                <circle cx="165" cy="248" r="12" fill="#94a3b8" class="anim-smoke-1"/>
+                <circle cx="155" cy="244" r="15" fill="#cbd5e1" class="anim-smoke-2"/>
+
+                <!-- Rueda Trasera -->
+                <g transform="translate(205, 255)">
+                  <circle cx="0" cy="0" r="42" fill="#090d14" stroke="#64748b" stroke-width="8"/>
+                  <circle cx="0" cy="0" r="26" fill="none" stroke="#94a3b8" stroke-width="3"/>
+                  <g class="anim-wheel">
+                    <line x1="-26" y1="0" x2="26" y2="0" stroke="#cbd5e1" stroke-width="2.5"/>
+                    <line x1="0" y1="-26" x2="0" y2="26" stroke="#cbd5e1" stroke-width="2.5"/>
+                    <line x1="-18" y1="-18" x2="18" y2="18" stroke="#cbd5e1" stroke-width="2"/>
+                  </g>
+                </g>
+
+                <!-- Rueda Delantera -->
+                <g transform="translate(455, 255)">
+                  <circle cx="0" cy="0" r="42" fill="#090d14" stroke="#64748b" stroke-width="7"/>
+                  <circle cx="0" cy="0" r="27" fill="none" stroke="#94a3b8" stroke-width="3"/>
+                  <g class="anim-wheel">
+                    <line x1="-27" y1="0" x2="27" y2="0" stroke="#cbd5e1" stroke-width="2.5"/>
+                    <line x1="0" y1="-27" x2="0" y2="27" stroke="#cbd5e1" stroke-width="2.5"/>
+                    <line x1="-19" y1="-19" x2="19" y2="19" stroke="#cbd5e1" stroke-width="2"/>
+                  </g>
+                </g>
+
+                <!-- Tubos de escape cromados -->
+                <path d="M295 235 L165 248 L165 238 L290 224 Z" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>
+
+                <!-- Chasis, Motor V-Twin y Tanque -->
+                <path d="M205 255 L270 195 L380 185 L455 255" fill="none" stroke="#94a3b8" stroke-width="7" stroke-linecap="round"/>
+                <!-- Horquilla delantera -->
+                <line x1="372" y1="145" x2="455" y2="255" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round"/>
+                <!-- Faro delantero encendido -->
+                <circle cx="408" cy="175" r="10" fill="#fef08a" stroke="#eab308" stroke-width="2"/>
+                <polygon points="416,170 590,140 590,215 416,182" fill="rgba(254, 240, 138, 0.18)"/>
+
+                <!-- Motor V-Twin -->
+                <rect x="282" y="198" width="54" height="42" rx="6" fill="#334155" stroke="#94a3b8" stroke-width="2"/>
+                <!-- Tanque negro brillante -->
+                <path d="M295 175 Q340 155 385 180 L365 202 L295 198 Z" fill="#111827" stroke="#00ff88" stroke-width="2"/>
+
+                <!-- ARNOLD CONDUCIENDO -->
+                <!-- Pierna -->
+                <path d="M265 185 L315 225 L345 238" fill="none" stroke="#1e293b" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Torso inclinado hacia adelante -->
+                <path d="M245 185 L278 112 L322 118 L295 192 Z" fill="#181c24" stroke="#64748b" stroke-width="2"/>
+                <!-- Brazo extendido al manillar -->
+                <path d="M292 126 L368 148" fill="none" stroke="#1e242e" stroke-width="20" stroke-linecap="round"/>
+                <!-- Cabeza de perfil/3-4 -->
+                <rect x="284" y="65" width="46" height="50" rx="14" fill="#d9a382" stroke="#8c5d42" stroke-width="1.5"/>
+                <!-- Cabello -->
+                <path d="M282 82 L284 62 Q310 52 332 64 L330 78 Z" fill="#2d241e"/>
+                <!-- Gafas oscuras -->
+                <rect x="304" y="82" width="28" height="13" rx="3" fill="#05070a" stroke="#94a3b8" stroke-width="1.5"/>
+              </g>
+            </svg>
+          `;
+
+        // FASE 3: PELIGRO / TIEMPO POR ACABAR (Daño de batalla, ojo cibernético rojo brillante y sirenas)
+        case 'danger':
+          return `
+            <svg viewBox="0 0 640 360" class="w-full h-full max-h-[340px]" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="redEyeGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="30%" stop-color="#ff2a2a"/>
+                  <stop offset="100%" stop-color="#ff0000" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+
+              <!-- Fondo de alerta roja -->
+              <rect x="0" y="0" width="640" height="360" fill="rgba(180, 0, 0, 0.16)"/>
+
+              <!-- Triángulos de advertencia laterales -->
+              <g transform="translate(85, 130)" opacity="0.85">
+                <polygon points="45,0 90,78 0,78" fill="rgba(255,42,42,0.2)" stroke="#ff2a2a" stroke-width="3"/>
+                <text x="45" y="62" text-anchor="middle" fill="#ff2a2a" font-size="42" font-weight="bold">!</text>
+              </g>
+              <g transform="translate(465, 130)" opacity="0.85">
+                <polygon points="45,0 90,78 0,78" fill="rgba(255,42,42,0.2)" stroke="#ff2a2a" stroke-width="3"/>
+                <text x="45" y="62" text-anchor="middle" fill="#ff2a2a" font-size="42" font-weight="bold">!</text>
+              </g>
+
+              <!-- Primer plano dramático de Arnold con daño de batalla -->
+              <g transform="translate(0, 10)">
+                <!-- Hombros chaqueta dañada -->
+                <path d="M185 350 L210 215 Q260 185 320 185 Q380 185 430 215 L455 350 Z" fill="#161920" stroke="#ff2a2a" stroke-width="2.5"/>
+
+                <!-- Cuello -->
+                <rect x="290" y="155" width="60" height="40" rx="8" fill="#c99372"/>
+
+                <!-- Rostro -->
+                <path d="M262 85 Q262 50 320 50 Q378 50 378 85 L374 145 Q370 178 320 182 Q270 178 266 145 Z" fill="#d9a382" stroke="#7c2d12" stroke-width="2"/>
+
+                <!-- Cabello -->
+                <path d="M260 88 L264 56 Q320 36 376 56 L380 88 Q355 68 320 68 Q285 68 260 88 Z" fill="#261e19"/>
+
+                <!-- Lado izquierdo: Gafa rota -->
+                <rect x="268" y="102" width="44" height="24" rx="4" fill="#090b10" stroke="#94a3b8" stroke-width="2"/>
+                <line x1="276" y1="104" x2="296" y2="124" stroke="#cbd5e1" stroke-width="1.5"/>
+
+                <!-- Lado derecho: DAÑO DE BATALLA (Endoesqueleto metálico T-800 expuesto) -->
+                <path d="M324 84 Q362 82 374 106 L368 144 Q346 150 326 136 Z" fill="#475569" stroke="#94a3b8" stroke-width="2"/>
+                <!-- Placas metálicas y pistones -->
+                <line x1="332" y1="95" x2="366" y2="95" stroke="#cbd5e1" stroke-width="2"/>
+                <line x1="330" y1="132" x2="364" y2="136" stroke="#1e293b" stroke-width="3"/>
+
+                <!-- OJO CIBERNÉTICO ROJO BRILLANTE -->
+                <g class="anim-cyber-eye">
+                  <circle cx="348" cy="114" r="24" fill="url(#redEyeGlow)"/>
+                  <circle cx="348" cy="114" r="8" fill="#ff2a2a" stroke="#ffffff" stroke-width="1.5"/>
+                  <circle cx="348" cy="114" r="3" fill="#ffffff"/>
+                </g>
+
+                <!-- Boca en grito de advertencia -->
+                <rect x="296" y="148" width="48" height="16" rx="6" fill="#3f1212" stroke="#7c2d12" stroke-width="2"/>
+                <line x1="302" y1="154" x2="338" y2="154" stroke="#f8fafc" stroke-width="3"/>
+              </g>
+            </svg>
+          `;
+
+        // FASE 4: FINAL / TIEMPO AGOTADO (Explosión + Pulgar arriba épico "Hasta la vista, baby")
+        case 'gameover':
+        default:
+          return `
+            <svg viewBox="0 0 640 360" class="w-full h-full max-h-[340px]" xmlns="http://www.w3.org/2000/svg">
+              <!-- Explosión cinemática de fondo -->
+              <g class="anim-explosion">
+                <polygon points="320,25 365,95 455,65 425,145 510,185 425,225 460,300 365,270 320,335 275,270 180,300 215,225 130,185 215,145 185,65 275,95"
+                         fill="#ea580c" opacity="0.85"/>
+                <polygon points="320,55 355,115 425,95 400,155 465,185 400,215 425,275 355,255 320,310 285,255 215,275 240,215 175,185 240,155 215,95 285,115"
+                         fill="#facc15" opacity="0.92"/>
+              </g>
+
+              <!-- Arnold en pose triunfal con pulgar arriba -->
+              <g transform="translate(-30, 12)">
+                <!-- Cuerpo chaqueta de cuero -->
+                <path d="M185 350 L205 198 Q235 172 280 168 L350 168 Q395 172 420 198 L440 350 Z" fill="#14171f" stroke="#fbbf24" stroke-width="2.5"/>
+                <!-- Cuello y cabeza -->
+                <rect x="292" y="142" width="46" height="32" rx="8" fill="#d9a382"/>
+                <path d="M272 82 Q272 56 315 56 Q358 56 358 82 L356 128 Q354 152 315 155 Q276 152 274 128 Z" fill="#e5b393" stroke="#8c5d42" stroke-width="1.5"/>
+                <path d="M271 86 L273 62 Q315 46 357 62 L359 86 Q345 70 315 70 Q285 70 271 86 Z" fill="#2d241e"/>
+
+                <!-- Gafas de sol intactas y brillantes -->
+                <rect x="273" y="100" width="38" height="20" rx="4" fill="#05070a" stroke="#fbbf24" stroke-width="2"/>
+                <rect x="320" y="100" width="38" height="20" rx="4" fill="#05070a" stroke="#fbbf24" stroke-width="2"/>
+                <line x1="311" y1="106" x2="320" y2="106" stroke="#fbbf24" stroke-width="3"/>
+
+                <!-- Sonrisa icónica -->
+                <path d="M296 135 Q315 147 334 135" fill="none" stroke="#6b3e26" stroke-width="3.5" stroke-linecap="round"/>
+
+                <!-- BRAZO CON PULGAR ARRIBA ESTILO TERMINATOR 2 -->
+                <g class="anim-thumb">
+                  <path d="M405 225 L465 180" fill="none" stroke="#181c24" stroke-width="32" stroke-linecap="round"/>
+                  <!-- Puño con guante -->
+                  <rect x="452" y="152" width="42" height="44" rx="10" fill="#111318" stroke="#fbbf24" stroke-width="2"/>
+                  <!-- Pulgar levantado -->
+                  <rect x="462" y="114" width="18" height="44" rx="9" fill="#d9a382" stroke="#8c5d42" stroke-width="2"/>
+                  <!-- Destello dorado alrededor del pulgar -->
+                  <circle cx="471" cy="115" r="24" fill="none" stroke="#fef08a" stroke-width="2" stroke-dasharray="6 6"/>
+                </g>
+              </g>
+            </svg>
+          `;
+      }
+    }
+
+    // --- 7. EFECTO MÁQUINA DE ESCRIBIR PARA EL DIÁLOGO ---
+    function typewriteDialogue(fullText) {
+      if (state.typewriterInterval) {
+        clearInterval(state.typewriterInterval);
+      }
+      dom.dialogueText.textContent = '';
+      let idx = 0;
+      state.typewriterInterval = setInterval(() => {
+        if (idx < fullText.length) {
+          dom.dialogueText.textContent += fullText.charAt(idx);
+          idx++;
+        } else {
+          clearInterval(state.typewriterInterval);
+        }
+      }, 24);
+    }
+
+    // --- 8. CAMBIO DE FASE VISUAL Y SONORA ---
+    function setPhase(phaseKey, triggerSpeech = true) {
+      const phaseData = PHASES[phaseKey];
+      if (!phaseData) return;
+
+      const phaseChanged = state.currentPhase !== phaseKey;
+      state.currentPhase = phaseKey;
+
+      // Clases del body para temática de color
+      dom.body.classList.remove('state-welcome', 'state-running', 'state-danger', 'state-gameover');
+      dom.body.classList.add(`state-${phaseKey}`);
+
+      // Vibración intensa en fase peligro
+      if (phaseKey === 'danger') {
+        dom.mainStage.classList.add('shake-intense');
+      } else {
+        dom.mainStage.classList.remove('shake-intense');
+      }
+
+      // Actualizar etiquetas HUD
+      dom.hudStatusBadge.textContent = phaseData.badge;
+      dom.phaseTag.textContent = phaseData.phaseTag;
+      dom.hudTelemetry.textContent = phaseData.telemetry;
+      dom.hudModeReadout.textContent = phaseData.modeReadout;
+      dom.timerSubstatus.textContent = phaseData.substatus;
+
+      // Colores dinámicos de barra y subestado
+      dom.progressBar.className = 'progress-fill h-full';
+      if (phaseKey === 'welcome') {
+        dom.progressBar.classList.add('bg-cyan-400');
+        dom.timerSubstatus.className = 'mt-2 text-xs sm:text-sm tracking-[0.25em] uppercase text-cyan-400 font-bold';
+      } else if (phaseKey === 'running') {
+        dom.progressBar.classList.add('bg-emerald-400');
+        dom.timerSubstatus.className = 'mt-2 text-xs sm:text-sm tracking-[0.25em] uppercase text-emerald-400 font-bold';
+      } else if (phaseKey === 'danger') {
+        dom.progressBar.classList.add('bg-red-500');
+        dom.timerSubstatus.className = 'mt-2 text-xs sm:text-sm tracking-[0.25em] uppercase text-red-400 font-bold animate-pulse';
+      } else if (phaseKey === 'gameover') {
+        dom.progressBar.classList.add('bg-amber-400');
+        dom.timerSubstatus.className = 'mt-2 text-xs sm:text-sm tracking-[0.25em] uppercase text-amber-400 font-bold';
+      }
+
+      // Renderizar SVG correspondiente
+      dom.arnoldSvgContainer.innerHTML = getArnoldSVG(phaseKey);
+
+      // Escribir diálogo y reproducir voz/efectos si cambió o se solicitó
+      if (phaseChanged || triggerSpeech) {
+        typewriteDialogue(phaseData.dialogue);
+        if (triggerSpeech) {
+          speakArnold(phaseData.dialogue);
+        }
+      }
+    }
+
+    // --- 9. FORMATEO Y ACTUALIZACIÓN DEL RELOJ ---
+    function formatTime(sec) {
+      const safeSec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(safeSec / 60);
+      const s = safeSec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateTimerUI() {
+      dom.timerDisplay.textContent = formatTime(state.remainingSeconds);
+      const pct = state.totalSeconds > 0
+        ? Math.max(0, Math.min(100, (state.remainingSeconds / state.totalSeconds) * 100))
+        : 0;
+      dom.progressBar.style.width = `${pct}%`;
+    }
+
+    function syncConfigFromInputs() {
+      let mins = parseInt(dom.inputMinutes.value, 10);
+      let secs = parseInt(dom.inputSeconds.value, 10);
+      let danger = parseInt(dom.inputDangerSec.value, 10);
+
+      if (isNaN(mins) || mins < 0) mins = 0;
+      if (mins > 99) mins = 99;
+      if (isNaN(secs) || secs < 0) secs = 0;
+      if (secs > 59) secs = 59;
+      if (isNaN(danger) || danger < 3) danger = 3;
+      if (danger > 300) danger = 300;
+
+      // Evitar 00:00 como tiempo inicial
+      if (mins === 0 && secs === 0) {
+        secs = 10;
+        dom.inputSeconds.value = 10;
+      }
+
+      state.totalSeconds = mins * 60 + secs;
+      state.remainingSeconds = state.totalSeconds;
+      state.dangerThreshold = danger;
+      dom.dangerThresholdBadge.textContent = `ALERTA CRÍTICA: ≤ ${danger}s`;
+      updateTimerUI();
+    }
+
+    // --- 10. LÓGICA DE CONTROL DEL CRONÓMETRO ---
+    function startMission() {
+      audioFX.init();
+
+      if (state.isRunning && !state.isPaused) return;
+
+      // Si estaba en welcome o gameover, reiniciar contador desde el tiempo programado
+      if (!state.isPaused || state.remainingSeconds <= 0) {
+        syncConfigFromInputs();
+      }
+
+      state.isRunning = true;
+      state.isPaused = false;
+
+      // Deshabilitar edición mientras corre
+      dom.inputMinutes.disabled = true;
+      dom.inputSeconds.disabled = true;
+      dom.inputDangerSec.disabled = true;
+      dom.btnStart.disabled = true;
+      dom.btnStartText.textContent = 'MISIÓN EN CURSO...';
+      dom.btnPause.disabled = false;
+
+      // Determinar fase inicial al arrancar (por si programaron un tiempo menor al umbral de peligro)
+      if (state.remainingSeconds <= state.dangerThreshold) {
+        audioFX.playDangerSiren();
+        setPhase('danger', true);
+      } else {
+        audioFX.playEngineRev();
+        setPhase('running', true);
+      }
+
+      clearInterval(state.timerInterval);
+      state.timerInterval = setInterval(() => {
+        state.remainingSeconds--;
+        updateTimerUI();
+
+        if (state.remainingSeconds <= 0) {
+          // TIEMPO AGOTADO -> FASE 4
+          clearInterval(state.timerInterval);
+          state.isRunning = false;
+          state.isPaused = false;
+          dom.btnStart.disabled = false;
+          dom.btnStartText.textContent = 'REPETIR MISIÓN';
+          dom.btnPause.disabled = true;
+          dom.inputMinutes.disabled = false;
+          dom.inputSeconds.disabled = false;
+          dom.inputDangerSec.disabled = false;
+
+          audioFX.playExplosion();
+          setPhase('gameover', true);
+          return;
+        }
+
+        // Transición a Fase 3 (Peligro) cuando alcanza el umbral configurado
+        if (state.remainingSeconds <= state.dangerThreshold && state.currentPhase !== 'danger') {
+          audioFX.playDangerSiren();
+          setPhase('danger', true);
+        } else {
+          audioFX.playTick(state.currentPhase === 'danger');
+        }
+      }, 1000);
+    }
+
+    function pauseMission() {
+      if (!state.isRunning || state.isPaused) return;
+      clearInterval(state.timerInterval);
+      state.isPaused = true;
+      dom.btnStart.disabled = false;
+      dom.btnStartText.textContent = 'REANUDAR MISIÓN';
+      dom.btnPause.disabled = true;
+      dom.timerSubstatus.textContent = '⏸ CRONÓMETRO EN PAUSA';
+    }
+
+    function resetMission(speakWelcome = true) {
+      clearInterval(state.timerInterval);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      state.isRunning = false;
+      state.isPaused = false;
+
+      dom.inputMinutes.disabled = false;
+      dom.inputSeconds.disabled = false;
+      dom.inputDangerSec.disabled = false;
+      dom.btnStart.disabled = false;
+      dom.btnStartText.textContent = 'ACTIVAR BOMBA / INICIAR';
+      dom.btnPause.disabled = true;
+
+      syncConfigFromInputs();
+      setPhase('welcome', speakWelcome);
+    }
+
+    // --- 11. EVENTOS DE INTERFAZ ---
+    dom.btnStart.addEventListener('click', startMission);
+    dom.btnPause.addEventListener('click', pauseMission);
+    dom.btnReset.addEventListener('click', () => resetMission(true));
+
+    // Presets rápidos
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.isRunning && !state.isPaused) return;
+        const totalSec = parseInt(btn.dataset.preset, 10);
+        dom.inputMinutes.value = Math.floor(totalSec / 60);
+        dom.inputSeconds.value = totalSec % 60;
+
+        // Resaltar preset seleccionado
+        document.querySelectorAll('.preset-btn').forEach(b => {
+          b.classList.remove('bg-red-900/40', 'border-red-500');
+          b.classList.add('bg-slate-800', 'border-slate-600');
+        });
+        btn.classList.remove('bg-slate-800', 'border-slate-600');
+        btn.classList.add('bg-red-900/40', 'border-red-500');
+
+        resetMission(false);
+      });
+    });
+
+    // Inputs numéricos
+    [dom.inputMinutes, dom.inputSeconds, dom.inputDangerSec].forEach(inp => {
+      inp.addEventListener('change', () => {
+        if (!state.isRunning) {
+          syncConfigFromInputs();
+        }
+      });
+    });
+
+    // Botones de vista previa rápida de fases
+    document.querySelectorAll('.preview-phase-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.isRunning && !state.isPaused) return;
+        const targetPhase = btn.dataset.preview;
+        if (targetPhase === 'running') audioFX.playEngineRev();
+        if (targetPhase === 'danger') audioFX.playDangerSiren();
+        if (targetPhase === 'gameover') audioFX.playExplosion();
+        setPhase(targetPhase, true);
+      });
+    });
+
+    // Repetir voz de la fase actual
+    dom.btnReplaySpeech.addEventListener('click', () => {
+      const currentDialogue = PHASES[state.currentPhase]?.dialogue;
+      if (currentDialogue) {
+        speakArnold(currentDialogue);
+      }
+    });
+
+    // Toggle Voz
+    dom.btnToggleVoice.addEventListener('click', () => {
+      state.voiceEnabled = !state.voiceEnabled;
+      dom.voiceIcon.textContent = state.voiceEnabled ? '🗣️' : '🔇';
+      dom.voiceLabel.textContent = state.voiceEnabled ? 'VOZ: ON' : 'VOZ: OFF';
+      if (!state.voiceEnabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      } else if (state.voiceEnabled) {
+        speakArnold(PHASES[state.currentPhase].dialogue);
+      }
+    });
+
+    // Toggle SFX
+    dom.btnToggleSound.addEventListener('click', () => {
+      state.sfxEnabled = !state.sfxEnabled;
+      dom.soundIcon.textContent = state.sfxEnabled ? '🔊' : '🔕';
+      dom.soundLabel.textContent = state.sfxEnabled ? 'SFX: ON' : 'SFX: OFF';
+      if (state.sfxEnabled) audioFX.playTick(false);
+    });
+
+    // Ocultar/Mostrar panel de configuración
+    dom.btnTogglePanel.addEventListener('click', () => {
+      state.panelVisible = !state.panelVisible;
+      dom.configPanel.classList.toggle('hidden', !state.panelVisible);
+    });
+
+    // Pantalla completa
+    dom.btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Modal GitHub Pages
+    dom.btnGithubModal.addEventListener('click', () => {
+      dom.githubModal.classList.remove('hidden');
+      dom.githubModal.classList.add('flex');
+    });
+    [dom.btnCloseGithubModal, dom.btnAcceptGithubModal].forEach(el => {
+      el.addEventListener('click', () => {
+        dom.githubModal.classList.add('hidden');
+        dom.githubModal.classList.remove('flex');
+      });
+    });
+
+    // --- 12. INICIALIZACIÓN AL CARGAR ---
+    window.addEventListener('DOMContentLoaded', () => {
+      syncConfigFromInputs();
+      // Renderizar Fase 1 (Bienvenida) al cargar; la voz se activa en la primera interacción o botón "Repetir voz"
+      setPhase('welcome', false);
+    });
+  </script>
+</body>
+</html>
